@@ -3,7 +3,7 @@ vim.opt.rtp:prepend("~/.config/nvim/lazy/lazy.nvim")
 vim.opt.termguicolors = true
 vim.g.mapleader = " "
 
--- DISABLE GARBAGE
+-- DISABLE
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 vim.cmd("syntax off")
@@ -144,20 +144,24 @@ luasnip.add_snippets("go", {
 		t({"", "}"}),
 	}),
 })
-local lspconfig = require("lspconfig")
 local cmp = require("cmp")
 local capabilities = require("cmp_nvim_lsp").default_capabilities()
 capabilities.textDocument.semanticTokens = nil
-lspconfig.clangd.setup({
+vim.lsp.config("clangd", {
 	capabilities = capabilities,
 	filetypes = {"cpp"},
 	cmd = {"clangd"},
 })
-lspconfig.gopls.setup({capabilities = capabilities})
-lspconfig.ts_ls.setup({
+vim.lsp.config("gopls", {
+	capabilities = capabilities
+})
+vim.lsp.config("ts_ls", {
 	capabilities = capabilities,
 	filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
 })
+vim.lsp.enable({"clangd"})
+vim.lsp.enable({"gopls"})
+vim.lsp.enable({"ts_ls"})
 
 cmp.setup(
 {
