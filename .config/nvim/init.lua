@@ -27,7 +27,7 @@ require("lazy").setup(
 	{"nvim-treesitter/nvim-treesitter",
 		build = ":TSUpdate",
 		config = function() require('nvim-treesitter.configs').setup {
-				ensure_installed = { "go", "lua", "typescript", "javascript", "cpp" },
+				ensure_installed = { "go", "lua", "typescript", "javascript", "cpp", "bash" },
 				highlight = {
 					enable = true,
 					additional_vim_regex_highlighting = false,
@@ -144,24 +144,49 @@ luasnip.add_snippets("go", {
 		t({"", "}"}),
 	}),
 })
+local lspconfig = require("lspconfig")
 local cmp = require("cmp")
 local capabilities = require("cmp_nvim_lsp").default_capabilities()
 capabilities.textDocument.semanticTokens = nil
-vim.lsp.config("clangd", {
+lspconfig.clangd.setup({
 	capabilities = capabilities,
 	filetypes = {"cpp"},
 	cmd = {"clangd"},
 })
-vim.lsp.config("gopls", {
-	capabilities = capabilities
-})
-vim.lsp.config("ts_ls", {
+lspconfig.bashls.setup{
+	capabilities = capabilities,
+	filetypes = {"sh"},
+	cmd = {"bash-language-server", "start"},
+	root_dir = function(fname)
+		return vim.fn.fnamemodify(fname, ":p:h")
+	end,
+}
+lspconfig.gopls.setup({capabilities = capabilities})
+lspconfig.ts_ls.setup({
 	capabilities = capabilities,
 	filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
 })
-vim.lsp.enable({"clangd"})
-vim.lsp.enable({"gopls"})
-vim.lsp.enable({"ts_ls"})
+vim.api.nvim_create_autocmd({"BufReadPost", "BufNewFile"}, {
+	pattern = "*",
+	callback = function()
+		local first_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
+		if first_line:match("^#!.*bash") then
+			vim.bo.filetype = "sh"
+--[[
+			local clients = vim.lsp.get_active_clients({bufnr = 0})
+			local attached = false
+			for _, c in ipairs(clients) do
+				if c.name == "bashls" then attached = true end
+			end
+
+			if not attached then
+				lspconfig.bashls.setup{}
+				lspconfig.bashls.manager.try_add()
+			end
+			]]
+		end
+	end,
+})
 
 cmp.setup(
 {
