@@ -45,8 +45,6 @@ require("lazy").setup({
 	},
 	{"nvim-tree/nvim-tree.lua",
 		config = function() require("nvim-tree").setup({
-			hijack_directories = { enable = false, auto_open = false },
-			open_on_tab = false,
 				view = {
 					float = {
 						enable = true,
@@ -104,6 +102,28 @@ require("lazy").setup({
 					},
 				},
 				filters = { dotfiles = false },
+				on_attach = function(bufnr)
+					local nvimtree_api = require("nvim-tree.api")
+					local function nvimtree_opts(desc)
+						return { desc = "nvim-tree: " .. desc, buffer = bufnr, noremap = true, silent = true, nowait = true }
+					end
+					vim.keymap.set('n', "<CR>", "<Nop>", { buffer = bufnr })
+					vim.keymap.set('n', 'a', nvimtree_api.fs.create, nvimtree_opts('Create'))
+					vim.keymap.set('n', 'r', nvimtree_api.fs.rename, nvimtree_opts('Rename'))
+					vim.keymap.set('n', 'c', nvimtree_api.fs.copy.node, nvimtree_opts('Copy'))
+					vim.keymap.set('n', "q", nvimtree_api.node.open.edit, nvimtree_opts("Open"))
+					vim.keymap.set('n', "R", nvimtree_api.tree.reload, nvimtree_opts("Refresh"))
+					vim.keymap.set('n', 'd', function() nvimtree_api.fs.remove(); nvimtree_api.tree.reload() end, nvimtree_opts('Delete'))
+					vim.keymap.set('n', 'p', function() nvimtree_api.fs.paste(); nvimtree_api.tree.reload() end, nvimtree_opts('Paste'))
+					vim.keymap.set('n', 'Q', function()
+						local node = nvimtree_api.tree.get_node_under_cursor()
+						if node then
+							if node.type == 'directory' then
+								nvimtree_api.tree.change_root_to_node(node)
+							end
+						end
+					end, nvimtree_opts('Set root to node under cursor'))
+				end,
 			})
 		end
 	},
@@ -127,30 +147,6 @@ vim.keymap.set('n', "<leader><Cr>", function()
 	vim.cmd('highlight TermBg guibg=#141414')
 end)
 vim.keymap.set('n', '<C-q>', ':NvimTreeToggle<CR>', {noremap = true, silent = true})
-vim.api.nvim_create_autocmd("FileType", {
-	pattern = "NvimTree",
-	callback = function()
-		local nvimtree_api = require("nvim-tree.api")
-		local function nvimtree_opts(desc) return { desc = "nvim-tree: " .. desc, buffer = bufnr, noremap = true, silent = true, nowait = true } end
-		local bufnr = vim.api.nvim_get_current_buf()
-		vim.keymap.set('n', "<CR>", "<Nop>", { buffer = bufnr })
-		vim.keymap.set('n', 'a', nvimtree_api.fs.create, nvimtree_opts('Create'))
-		vim.keymap.set('n', 'r', nvimtree_api.fs.rename, nvimtree_opts('Rename'))
-		vim.keymap.set('n', 'c', nvimtree_api.fs.copy.node, nvimtree_opts('Copy'))
-		vim.keymap.set('n', "q", nvimtree_api.node.open.edit, nvimtree_opts("Open"))
-		vim.keymap.set('n', "R", nvimtree_api.tree.reload, nvimtree_opts("Refresh"))
-		vim.keymap.set('n', 'd', function() nvimtree_api.fs.remove(); nvimtree_api.tree.reload() end, nvimtree_opts('Delete'))
-		vim.keymap.set('n', 'p', function() nvimtree_api.fs.paste(); nvimtree_api.tree.reload() end, nvimtree_opts('Paste'))
-		vim.keymap.set('n', 'Q', function()
-			local node = nvimtree_api.tree.get_node_under_cursor()
-			if node then
-				if node.type == 'directory' then
-					nvimtree_api.tree.change_root_to_node(node)
-				end
-			end
-		end, nvimtree_opts('Set root to node under cursor'))
-	end
-})
 local cmp = require("cmp")
 local cmp_mappings = {
 	["<C-d>"] = cmp.mapping.select_next_item(),
@@ -218,6 +214,7 @@ vim.lsp.config("bash_ls", {
 		return vim.fn.fnamemodify(fname, ":p:h")
 	end,
 })
+vim.lsp.enable("bash_ls")
 vim.lsp.config("go_pls", {
 	capabilities = capabilities,
 })
@@ -233,22 +230,6 @@ vim.api.nvim_create_autocmd({"BufReadPost", "BufNewFile"}, {
 			vim.bo.filetype = "sh"
 		end
 	end,
-})
-
-
-
--- =============
--- VimEnter
--- =============
-vim.api.nvim_create_autocmd("VimEnter", {
-	callback = function()
-		local path = vim.fn.argv(0)
-		local fullpath = vim.fn.fnamemodify(path, ":p")
-		if vim.fn.argc() == 0 or vim.fn.isdirectory(fullpath) ~= 0 then
-			vim.api.nvim_buf_set_name(0, "[No Name]")
-			require("nvim-tree.api").tree.open()
-		end
-	end
 })
 
 
