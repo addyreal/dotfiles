@@ -1,6 +1,7 @@
 -- =============
 -- OPTS
 -- =============
+vim.o.background = "dark"
 vim.opt.rtp:prepend("~/.config/nvim/lazy/lazy.nvim")
 vim.opt.number = true
 vim.opt.relativenumber = true
@@ -28,7 +29,7 @@ require("lazy").setup({
 	{"nvim-treesitter/nvim-treesitter",
 		build = ":TSUpdate",
 		config = function() require('nvim-treesitter.configs').setup {
-				ensure_installed = {"go", "lua", "typescript", "javascript", "cpp", "bash"},
+				ensure_installed = {"go", "lua", "typescript", "javascript", "cpp"},
 				highlight = {
 					enable = true,
 					additional_vim_regex_highlighting = false,
@@ -206,21 +207,70 @@ vim.lsp.config("clangd", {
 	filetypes = {"cpp"},
 	cmd = {"clangd"},
 })
-vim.lsp.config("bash_ls", {
-	capabilities = capabilities,
-	filetypes = {"sh", "bash"},
-	cmd = {"bash-language-server", "start"},
-	root_dir = function(fname)
-		return vim.fn.fnamemodify(fname, ":p:h")
-	end,
-})
-vim.lsp.enable("bash_ls")
 vim.lsp.config("go_pls", {
 	capabilities = capabilities,
 })
 vim.lsp.config("ts_ls", {
 	capabilities = capabilities,
 	filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
+})
+
+
+
+-- =============
+-- Bash
+-- =============
+if vim.fn.executable("shellcheck") == 0 then
+	vim.api.nvim_err_writeln("Shellcheck not installed! INSTALL IT RIGHT NOW!!!!")
+	return
+end
+local shellcheck_ns = vim.api.nvim_create_namespace("shellcheck")
+local severity_map = {
+	error =		vim.diagnostic.severity.ERROR,
+	warning =	vim.diagnostic.severity.WARN,
+	info =		vim.diagnostic.severity.INFO,
+	style =		vim.diagnostic.severity.HINT,
+}
+local function shellcheck(bufnr)
+	local fname = vim.api.nvim_buf_get_name(bufnr)
+	if fname == "" then return end
+
+	local output = vim.fn.system({
+		"shellcheck",
+		"--format=json",
+		fname,
+	})
+	if vim.v.shell_error ~= 0 and output == "" then return end
+
+	local ok, decoded = pcall(vim.json.decode, output)
+	if not ok or not decoded then return end
+
+	local diagnostics = {}
+	for _, d in ipairs(decoded or {}) do
+		table.insert(diagnostics, {
+			lnum = d.line - 1,
+			col = (d.column or 1) -1 ,
+			end_lnum = (d.endLine or d.line) - 1,
+			end_col = (d.endColumn or d.column or 1) - 1,
+			severity = severity_map[d.level] or vim.diagnostic.severity.ERROR,
+			message = ("SC%d: %s"):format(d.code, d.message),
+			source = "shellcheck",
+		})
+	end
+
+	vim.diagnostic.set(
+		shellcheck_ns,
+		bufnr,
+		diagnostics,
+		{}
+	)
+end
+vim.api.nvim_create_autocmd({"BufWritePost", "BufEnter"}, {
+	pattern = "*.sh",
+	callback = function(bufnr)
+		local bufnr = vim.api.nvim_get_current_buf()
+		shellcheck(bufnr)
+	end,
 })
 vim.api.nvim_create_autocmd({"BufReadPost", "BufNewFile"}, {
 	pattern = "*",
@@ -251,7 +301,6 @@ vim.api.nvim_create_autocmd('TermOpen', {
 -- =============
 -- Theme
 -- =============
-vim.o.background = "dark"
 vim.cmd("syntax off")
 vim.cmd("highlight clear")
 vim.cmd("colorscheme default")
@@ -270,6 +319,7 @@ vim.cmd [[
 	hi clear NvimTreeExecFile
 	hi clear NvimTreeRootFolder
 ]]
+
 vim.api.nvim_create_user_command("What", "TSHighlightCapturesUnderCursor", {})
 for _, group in ipairs(vim.fn.getcompletion("@", "highlight")) do pcall(vim.api.nvim_set_hl, 0, group, {}) end
 vim.api.nvim_set_hl(0, "Normal",			{ fg = "#ffffff", bg = "#000000", bold = true })
