@@ -18,6 +18,39 @@ vim.g.loaded_netrwPlugin = 1
 -- PLUGINS
 -- =============
 require("lazy").setup({
+	{"lewis6991/gitsigns.nvim",
+		config = function()
+			require("gitsigns").setup({
+				signs = {add = "+", change = "~", delete = "_"},
+				attach_to_untracked = false,
+				current_line_blame = true,
+				current_line_blame_opts = {
+					virt_text = true,
+					delay = 500,
+				},
+				on_attach = function(bufnr)
+					if vim.bo[bufnr].buftype ~= "" then return end
+					local gs = package.loaded.gitsigns
+					vim.keymap.set("n", "gg", gs.preview_hunk, {buffer = bufnr})
+					vim.keymap.set("n", "gb", gs.blame_line, {buffer = bufnr})
+					vim.keymap.set("n", "gd", function()
+						gs.diffthis()
+						local win = vim.api.nvim_get_current_win()
+						local wins = vim.api.nvim_tabpage_list_wins(0)
+						for _, w in ipairs(wins) do
+							if w ~= win then
+								vim.api.nvim_set_current_win(w)
+								break
+							end
+						end
+					end, {buffer = bufnr})
+				end,
+				preview_config = {
+					border = "single",
+				}
+			})
+		end,
+	},
 	{"hrsh7th/nvim-cmp"},
 	{"hrsh7th/cmp-nvim-lsp"},
 	{"hrsh7th/cmp-buffer"},
@@ -25,7 +58,7 @@ require("lazy").setup({
 	{"L3MON4D3/LuaSnip"},
 	{"saadparwaiz1/cmp_luasnip"},
 	{"rafamadriz/friendly-snippets"},
-	{"neovim/nvim-lspconfig"},
+	{"neovim/nvim-lspconfig"},		--????? what for
 	{"nvim-treesitter/nvim-treesitter",
 		build = ":TSUpdate",
 		config = function() require('nvim-treesitter.configs').setup {
@@ -207,12 +240,39 @@ vim.lsp.config("clangd", {
 	filetypes = {"cpp"},
 	cmd = {"clangd"},
 })
-vim.lsp.config("go_pls", {
-	capabilities = capabilities,
-})
 vim.lsp.config("ts_ls", {
 	capabilities = capabilities,
 	filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
+})
+
+
+
+-- =============
+-- Golang
+-- =============
+if vim.fn.executable("gopls") == 0 then
+	vim.api.nvim_err_writeln("Shellcheck not installed! INSTALL IT RIGHT NOW!!!!")
+	return
+end
+local function gopls(bufnr)
+	local client_id = vim.lsp.start({
+		name = "gopls",
+		cmd = {"gopls"},
+		capabilities = capabilities,
+		root_dir = vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr)),
+		on_attach = function(client, bufnr)
+			local opts = {noremap = true, silent = true, buffer = bufnr}
+			vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
+		end,
+
+	})
+	vim.lsp.buf_attach_client(bufnr, client_id)
+end
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = "go",
+	callback = function(args)
+		gopls(args.buf)
+	end,
 })
 
 
@@ -238,6 +298,7 @@ local function shellcheck(bufnr)
 	local output = vim.fn.system({
 		"shellcheck",
 		"--format=json",
+		"--exclude=SC2155,SC2034,SC1090,SC2181",
 		fname,
 	})
 	if vim.v.shell_error ~= 0 and output == "" then return end
@@ -265,11 +326,10 @@ local function shellcheck(bufnr)
 		{}
 	)
 end
-vim.api.nvim_create_autocmd({"BufWritePost", "BufEnter"}, {
-	pattern = "*.sh",
-	callback = function(bufnr)
-		local bufnr = vim.api.nvim_get_current_buf()
-		shellcheck(bufnr)
+vim.api.nvim_create_autocmd({"BufWritePost", "FileType"}, {
+	pattern = "sh",
+	callback = function(args)
+		shellcheck(args.buf)
 	end,
 })
 vim.api.nvim_create_autocmd({"BufReadPost", "BufNewFile"}, {
@@ -288,7 +348,7 @@ vim.api.nvim_create_autocmd({"BufReadPost", "BufNewFile"}, {
 -- TermOpen
 -- =============
 vim.api.nvim_create_autocmd('TermOpen', {
-	group = vim.api.nvim_create_augroup('custom-term-open', { clear = true }),
+	group = vim.api.nvim_create_augroup('custom-term-open', {clear = true}),
 	callback = function()
 		vim.cmd("startinsert")
 		vim.opt.number = false
@@ -319,7 +379,6 @@ vim.cmd [[
 	hi clear NvimTreeExecFile
 	hi clear NvimTreeRootFolder
 ]]
-
 vim.api.nvim_create_user_command("What", "TSHighlightCapturesUnderCursor", {})
 for _, group in ipairs(vim.fn.getcompletion("@", "highlight")) do pcall(vim.api.nvim_set_hl, 0, group, {}) end
 vim.api.nvim_set_hl(0, "Normal",			{ fg = "#ffffff", bg = "#000000", bold = true })
