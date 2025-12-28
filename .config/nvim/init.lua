@@ -79,6 +79,10 @@ require("lazy").setup({
 	},
 	{"nvim-tree/nvim-tree.lua",
 		config = function() require("nvim-tree").setup({
+				git = {
+					enable = true,
+					ignore = false,
+				},
 				view = {
 					float = {
 						enable = true,
@@ -251,7 +255,7 @@ vim.lsp.config("ts_ls", {
 -- Golang
 -- =============
 if vim.fn.executable("gopls") == 0 then
-	vim.api.nvim_err_writeln("Shellcheck not installed! INSTALL IT RIGHT NOW!!!!")
+	vim.api.nvim_err_writeln("Gopls not installed! INSTALL IT RIGHT NOW!!!!")
 	return
 end
 local function gopls(bufnr)
