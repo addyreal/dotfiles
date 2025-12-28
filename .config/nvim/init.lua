@@ -295,50 +295,46 @@ local function shellcheck(bufnr)
 	local fname = vim.api.nvim_buf_get_name(bufnr)
 	if fname == "" then return end
 
-	local output = vim.fn.system({
+	local output = vim.system({
 		"shellcheck",
 		"--format=json",
 		"--exclude=SC2155,SC2034,SC1090,SC2181",
 		fname,
-	})
-	if vim.v.shell_error ~= 0 and output == "" then return end
+	}, {text = true}, function(res)
+		if vim.v.shell_error ~= 0 and output == "" then return end
 
-	local ok, decoded = pcall(vim.json.decode, output)
-	if not ok or not decoded then return end
+		local ok, decoded = pcall(vim.json.decode, res.stdout)
+		if not ok or not decoded then return end
 
-	local diagnostics = {}
-	for _, d in ipairs(decoded or {}) do
-		table.insert(diagnostics, {
-			lnum = d.line - 1,
-			col = (d.column or 1) -1 ,
-			end_lnum = (d.endLine or d.line) - 1,
-			end_col = (d.endColumn or d.column or 1) - 1,
-			severity = severity_map[d.level] or vim.diagnostic.severity.ERROR,
-			message = ("SC%d: %s"):format(d.code, d.message),
-			source = "shellcheck",
-		})
-	end
+		local diagnostics = {}
+		for _, d in ipairs(decoded or {}) do
+			table.insert(diagnostics, {
+				lnum = d.line - 1,
+				col = (d.column or 1) -1 ,
+				end_lnum = (d.endLine or d.line) - 1,
+				end_col = (d.endColumn or d.column or 1) - 1,
+				severity = severity_map[d.level] or vim.diagnostic.severity.ERROR,
+				message = ("SC%d: %s"):format(d.code, d.message),
+				source = "shellcheck",
+			})
+		end
 
-	vim.diagnostic.set(
-		shellcheck_ns,
-		bufnr,
-		diagnostics,
-		{}
-	)
+		vim.schedule(function()
+			vim.diagnostic.set(shellcheck_ns, bufnr, diagnostics, {})
+		end)
+	end)
 end
-vim.api.nvim_create_autocmd({"BufWritePost", "FileType"}, {
+vim.api.nvim_create_autocmd("FileType", {
 	pattern = "sh",
 	callback = function(args)
 		shellcheck(args.buf)
-	end,
-})
-vim.api.nvim_create_autocmd({"BufReadPost", "BufNewFile"}, {
-	pattern = "*",
-	callback = function()
-		local first_line = vim.api.nvim_buf_get_lines(0, 0, 1, false)[1] or ""
-		if first_line:match("^#!.*bash") then
-			vim.bo.filetype = "sh"
-		end
+
+		vim.api.nvim_create_autocmd("BufWritePost", {
+			buffer = args.buf,
+			callback = function(args)
+				shellcheck(args.buf)
+			end,
+		})
 	end,
 })
 
