@@ -21,7 +21,6 @@ require("lazy").setup({
 	{"lewis6991/gitsigns.nvim",
 		config = function()
 			require("gitsigns").setup({
-				signs = {add = "+", change = "~", delete = "_"},
 				attach_to_untracked = false,
 				current_line_blame = true,
 				current_line_blame_opts = {
@@ -263,7 +262,15 @@ local function gopls(bufnr)
 		name = "gopls",
 		cmd = {"gopls"},
 		capabilities = capabilities,
-		root_dir = vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr)),
+		root_dir = function(bufnr)
+			local fname = vim.api.nvim_buf_get_name(bufnr)
+			return vim.fs.dirname(
+				vim.fs.find("go.mod", {
+					upward = true,
+					path = fname,
+				})[1]
+			)
+		end,
 		on_attach = function(client, bufnr)
 			local opts = {noremap = true, silent = true, buffer = bufnr}
 			vim.keymap.set("n", "K", vim.lsp.buf.hover, opts)
@@ -302,7 +309,7 @@ local function shellcheck(bufnr)
 	local output = vim.system({
 		"shellcheck",
 		"--format=json",
-		"--exclude=SC2155,SC2034,SC1090,SC2181",
+		"--exclude=SC2034,SC1090,SC2181,SC2261",
 		fname,
 	}, {text = true}, function(res)
 		if vim.v.shell_error ~= 0 and output == "" then return end
