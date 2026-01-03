@@ -60,7 +60,8 @@ require("lazy").setup({
 	{"neovim/nvim-lspconfig"},		--????? what for
 	{"nvim-treesitter/nvim-treesitter",
 		build = ":TSUpdate",
-		config = function() require('nvim-treesitter.configs').setup {
+		config = function()
+			require('nvim-treesitter').setup {
 				ensure_installed = {"go", "lua", "typescript", "javascript", "cpp"},
 				highlight = {
 					enable = true,
