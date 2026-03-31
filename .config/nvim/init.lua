@@ -51,6 +51,7 @@ end
 --	Opts
 --]]
 vim.g.mapleader = " "
+vim.opt.tabstop = 8
 vim.opt.wrap = false
 vim.opt.number = true
 vim.opt.swapfile = false
@@ -101,11 +102,7 @@ if not vim.loop.fs_stat(mini_path) then
 			end,
 			on_exit = function(_, code)
 				if code == 0 then
-					popup({
-						"Success installing mini.nvim",
-						"",
-						"Restart nvim to take effect",
-					})
+					vim.cmd("restart")
 				else
 					popup("Failed installing mini.nvim")
 				end
@@ -416,7 +413,7 @@ local function shellcheck(bufnr)
 	local output = vim.system({
 		"shellcheck",
 		"--format=json",
-		"--exclude=SC2034,SC1090,SC2181,SC2261,SC2148",
+		"--exclude=SC2034,SC1090,SC1091,SC2181,SC2261,SC2148,SC2329",
 		fname,
 	}, {text = true}, function(res)
 		if vim.v.shell_error ~= 0 and output == "" then return end
