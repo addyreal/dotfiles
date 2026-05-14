@@ -121,7 +121,7 @@ local deps = require("mini.deps")
 deps.setup()
 deps.add({
 	source = "nvim-treesitter/nvim-treesitter",
-	checkout = "master",
+	checkout = "main",
 	hooks = {post_checkout = function() vim.cmd("TSUpdate") end},
 })
 deps.add({
@@ -160,18 +160,18 @@ deps.add({
 --[[
 --	Treesitter
 --]]
-require("nvim-treesitter.configs").setup({
-	ensure_installed = {
-		"go",
-		"lua",
-	},
-	highlight = {
-		enable = true,
-		additional_vim_regex_highlighting = false,
-	},
-	semantic_tokens = {
-		enable = true,
-	},
+require("nvim-treesitter").setup({
+	install_dir = vim.fn.stdpath("data") .. "/site"
+})
+require("nvim-treesitter").install({
+	"go",
+	"lua",
+})
+vim.api.nvim_create_autocmd("FileType", {
+	pattern = {"go", "lua"},
+	callback = function()
+		vim.treesitter.start()
+	end,
 })
 
 
